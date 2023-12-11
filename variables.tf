@@ -22,3 +22,8 @@ variable "instance_name" {
   default     = "task3-instance-dev"
 }
 
+variable "vpc_name" {
+	description = "Name of the vpc"
+	type = string
+	default = "task3-vpc-dev"
+}
