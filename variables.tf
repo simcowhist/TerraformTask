@@ -7,13 +7,13 @@ variable "environment" {
 variable "instance_ami" {
   description = "AMI to be used in EC2 instances"
   type        = string
-  default     = "ami-0c9db8d36d76d38ed"
+  default     = "ami-028c6514ea77d5ac3"
 }
 
 variable "instance_type" {
   description = "Instace type to be used in EC2 instances"
   type        = string
-  default     = "t3.micro"
+  default     = "t4g.micro"
 }
 
 variable "instance_name" {
@@ -22,8 +22,20 @@ variable "instance_name" {
   default     = "task3-instance-dev"
 }
 
-variable "vpc_name" {
-	description = "Name of the vpc"
-	type = string
-	default = "task3-vpc-dev"
+variable "vpc_cidr" {
+  description = "VPC cider to use"
+  type = string
+  default = "10.0.0.0/16"
+}
+
+variable project_name {
+  description = "Name of the project, to be used as a prefix for resource names"
+  type = string
+  default = "task3"
+}
+
+variable iam_instance_profile_arn {
+  description = "The iam instance profile for the ec2 instances"
+  type = string
+  default = "arn:aws:iam::930354804502:instance-profile/ecsInstanceRole"
 }
