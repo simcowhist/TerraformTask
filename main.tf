@@ -1,8 +1,8 @@
 locals {
   tags = {
-    Terraform = "true"
+    Terraform   = "true"
     Environment = terraform.workspace
-    Project = vars.project_name
+    Project     = var.project_name
   }
 }
 data "aws_availability_zones" "available" {
@@ -30,23 +30,30 @@ module "autoscaling" {
 
   name = "${var.project_name}-asg-${terraform.workspace}"
 
-  min_size = 2
-  max_size = 4
-  desired_capacity = 2
+  min_size            = 2
+  max_size            = 4
+  desired_capacity    = 2
   vpc_zone_identifier = module.vpc.private_subnets
 
-  launch_template_name = "${var.project_name}-ltmp-${terrafrm.workspace}"
+  launch_template_name        = "${var.project_name}-ltmp-${terraform.workspace}"
   launch_template_description = "Launch template for the task3 ec2 instances"
-  update_default_version = true
+  update_default_version      = true
 
-  image_id = var.instance_ami
+  image_id      = var.instance_ami
   instance_type = var.instance_type
-  
-  create_iam_instance_profile = false
-  iam_instance_profile_name = var.iam_instance_profile_arn
 
-  user_data = base64encode(templatefile("user_data.tftpl", {cluster = module.ecs.cluster_name}))
-  tags = local.tags
+  create_iam_instance_profile = false
+  iam_instance_profile_arn    = var.iam_instance_profile_arn
+
+  user_data = base64encode(templatefile("user_data.tftpl", { cluster = module.ecs.cluster_name }))
+  tags      = local.tags
+
+  tag_specifications = [
+    {
+      resource_type = "instance"
+      tags          = { Name = "${var.project_name}-inst-${terraform.workspace}" }
+    },
+  ]
 }
 
 module "ecs" {
@@ -57,7 +64,7 @@ module "ecs" {
   default_capacity_provider_use_fargate = false
   autoscaling_capacity_providers = {
     asg = {
-      auto_scaling_group_arn = module.autoscaling.autoscaling.group.arn
+      auto_scaling_group_arn = module.autoscaling.autoscaling_group_arn
     }
   }
 }
