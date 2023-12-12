@@ -39,3 +39,20 @@ variable "iam_instance_profile_arn" {
   type        = string
   default     = "arn:aws:iam::930354804502:instance-profile/ecsInstanceRole"
 }
+
+variable "min_scaling_size" {
+  description = "minimum amount of instances for the auto scaling group"
+  type        = number
+  default     = 0
+}
+
+variable "max_scaling_size" {
+  description = "maximum amount of instances for the auto scaling group"
+  type        = number
+  default     = 0
+}
+variable "desired_capacity" {
+  description = "desired instance capcity for the auto scaling group"
+  type        = number
+  default     = 0
+}
