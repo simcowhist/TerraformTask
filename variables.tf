@@ -7,13 +7,13 @@ variable "environment" {
 variable "instance_ami" {
   description = "AMI to be used in EC2 instances"
   type        = string
-  default     = "ami-028c6514ea77d5ac3"
+  default     = "ami-0c9db8d36d76d38ed"
 }
 
 variable "instance_type" {
   description = "Instace type to be used in EC2 instances"
   type        = string
-  default     = "t4g.micro"
+  default     = "t3.micro"
 }
 
 variable "instance_name" {
@@ -28,6 +28,23 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/16"
 }
 
+variable "public_subnets" {
+  description = "IP ranges for public subnets"
+  type        = list(string)
+  default     = ["10.0.101.0/24", "10.0.102.0/24"]
+}
+
+variable "private_subnets" {
+  description = "IP ranges for public subnets"
+  type        = list(string)
+  default     = ["10.0.1.0/24"]
+}
+
+variable "database_subnets" {
+  description = "IP ranges for database subnets"
+  type        = list(string)
+  default     = ["10.0.201.0/24"]
+}
 variable "project_name" {
   description = "Name of the project, to be used as a prefix for resource names"
   type        = string
@@ -55,4 +72,16 @@ variable "desired_capacity" {
   description = "desired instance capcity for the auto scaling group"
   type        = number
   default     = 0
+}
+
+variable "db_multi_az" {
+  description = "Value to determine if database instance should be across multiple az"
+  type        = bool
+  default     = true
+}
+
+variable "db_manage_master_password" {
+  description = "Value to determine if aws should manage the database's master password"
+  type        = bool
+  default     = true
 }
