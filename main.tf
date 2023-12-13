@@ -39,11 +39,20 @@ module "private_security_group" {
 module "database_security_group" {
   source = "terraform-aws-modules/security-group/aws"
 
-  name                = "${var.project_name}-dbsg-${terraform.workspace}"
-  description         = "Security group for RDS instances"
-  vpc_id              = module.vpc.vpc_id
-  ingress_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-  ingress_rules       = [3306, 3306, "tcp", "MySQL/Aurora"]
+  name        = "${var.project_name}-dbsg-${terraform.workspace}"
+  description = "Security group for RDS instances"
+  vpc_id      = module.vpc.vpc_id
+
+  # ingress
+  ingress_with_cidr_blocks = [
+    {
+      from_port   = 3306
+      to_port     = 3306
+      protocol    = "tcp"
+      description = "MySQL access from within VPC"
+      cidr_blocks = module.vpc.vpc_cidr_block
+    },
+  ]
 }
 
 module "db" {
