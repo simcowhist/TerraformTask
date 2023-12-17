@@ -13,9 +13,9 @@ module "vpc" {
   public_subnets   = var.public_subnets
   database_subnets = var.database_subnets
 
-  create_database_subnet_group = true
+  create_database_subnet_group = var.create_database_subnet_group
 
-  enable_nat_gateway = true
+  enable_nat_gateway = var.enable_nat_gateway
 }
 
 module "public_security_group" {
@@ -24,16 +24,22 @@ module "public_security_group" {
   name                = "${var.project_name}-sg-public-${terraform.workspace}"
   description         = "Security group for load-balancer with HTTP ports open within VPC"
   vpc_id              = module.vpc.vpc_id
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-  ingress_rules       = ["http-80-tcp"]
+  ingress_cidr_blocks = var.public_security_group_ingress_cidr_blocks
+  ingress_rules       = var.public_security_group_ingress_rules
+  egress_cidr_blocks  = module.vpc.private_subnets_cidr_blocks
+  egress_rules        = var.public_security_group_egress_rules
 }
 
 module "private_security_group" {
-  source              = "terraform-aws-modules/security-group/aws//modules/http-80"
+  source = "terraform-aws-modules/security-group/aws"
+
   name                = "${var.project_name}-sg-priv-${terraform.workspace}"
   description         = "Security group for ec2 instances allowing access only from the public subnet"
   vpc_id              = module.vpc.vpc_id
   ingress_cidr_blocks = module.vpc.public_subnets_cidr_blocks
+  ingress_rules       = var.private_security_group_ingress_rules
+  egress_cidr_blocks  = var.private_security_group_egress_cidr_blocks
+  egress_rules        = var.private_security_group_egress_rules
 }
 
 module "database_security_group" {
@@ -43,12 +49,11 @@ module "database_security_group" {
   description = "Security group for RDS instances"
   vpc_id      = module.vpc.vpc_id
 
-  # ingress
   ingress_with_cidr_blocks = [
     {
-      from_port   = 3306
-      to_port     = 3306
-      protocol    = "tcp"
+      from_port   = var.db_port
+      to_port     = var.db_port
+      protocol    = var.db_security_group_protocol
       description = "MySQL access from within VPC"
       cidr_blocks = module.vpc.vpc_cidr_block
     },
@@ -60,22 +65,23 @@ module "db" {
 
   identifier = "${var.project_name}-rds-${terraform.workspace}"
 
-  engine               = "mysql"
-  major_engine_version = "8"
-  engine_version       = "8.0"
-  family               = "mysql8.0"
-  instance_class       = "db.t3a.micro"
-  allocated_storage    = 10
+  engine               = var.db_engine
+  major_engine_version = var.db_major_engine_version
+  engine_version       = var.db_engine_version
+  family               = var.db_family
+  instance_class       = var.instance_type
+  allocated_storage    = var.db_allocated_stroage
 
-  db_name  = "${var.project_name}-database"
-  port     = 3306
-  username = "admin"
+  db_name  = var.project_name
+  port     = var.db_port
+  username = var.db_master_user
 
   vpc_security_group_ids = [module.database_security_group.security_group_id]
   multi_az               = var.db_multi_az
   db_subnet_group_name   = module.vpc.database_subnet_group
 
   manage_master_user_password = var.db_manage_master_password
+  skip_final_snapshot         = var.skip_final_snapshot
 }
 
 resource "aws_ecs_task_definition" "task_def" {
@@ -83,42 +89,60 @@ resource "aws_ecs_task_definition" "task_def" {
 
   container_definitions = jsonencode([
     {
-      name              = "web-app"
-      cpu               = 0
-      memory            = 512
-      memoryReservation = 256
-      image             = "930354804502.dkr.ecr.us-east-1.amazonaws.com/simcowhist"
+      name              = var.webapp_container_name
+      cpu               = var.webapp_cpu
+      memory            = var.webapp_memory_hard_limit
+      memoryReservation = var.webapp_memory_soft_limit
+      image             = var.webapp_image
+
       portMappings = [
         {
-          containerPort = 80
-          hostPort      = 80
-          protocol      = "tcp"
-          appProtocol   = "http"
+          containerPort = var.webapp_container_port
+          hostPort      = var.webapp_host_port
+          protocol      = var.webapp_protocol
+          appProtocol   = var.webapp_app_protocol
         }
       ]
-      essential = true
+      essential = var.webapp_essential
       logConfiguration = {
-        logDriver = "awslogs"
+        logDriver = var.webapp_log_driver
         options = {
-          awslogs-create-group  = "true"
-          awslogs-group         = "/ecs/${var.project_name}-tskdef-${terraform.workspace}",
-          awslogs-region        = "us-east-1"
-          awslogs-stream-prefix = "ecs"
+          awslogs-create-group  = var.aws_logs_create_group
+          awslogs-group         = "/${var.aws_logs_stream_prefix}/${var.project_name}-tskdef-${terraform.workspace}",
+          awslogs-region        = var.region
+          awslogs-stream-prefix = var.aws_logs_stream_prefix
         }
         secretOptions = []
       }
+      secrets : [{
+        name = "DB_USER"
+        valueFrom : "${module.db.db_instance_master_user_secret_arn}:username::"
+        },
+        {
+          name = "DB_PASSWORD"
+          valueFrom : "${module.db.db_instance_master_user_secret_arn}:password::"
+      }]
+      environment = [
+        {
+          name  = "DB_NAME"
+          value = var.project_name
+        },
+        {
+          name  = "DB_HOST"
+          value = element(split(":", module.db.db_instance_endpoint), 0)
+        }
+      ]
     }
   ])
-  cpu    = 256
-  memory = 512
+  cpu    = var.task_cpu
+  memory = var.task_memory
   runtime_platform {
-    cpu_architecture        = "X86_64"
-    operating_system_family = "LINUX"
+    cpu_architecture        = var.webapp_runtime_platform_cpu_architecture
+    operating_system_family = var.webapp_runtime_platform_operating_system_family
   }
-  requires_compatibilities = ["EC2"]
-  task_role_arn            = "arn:aws:iam::930354804502:role/ecsTaskExecutionRole"
-  execution_role_arn       = "arn:aws:iam::930354804502:role/ecsTaskExecutionRole"
-  network_mode             = "awsvpc"
+  requires_compatibilities = var.task_def_requiers_compatabilities
+  execution_role_arn       = aws_iam_role.task_role.arn
+  network_mode             = var.webapp_network_mode
 }
 
 module "autoscaling" {
@@ -134,8 +158,8 @@ module "autoscaling" {
 
   # launch template
   launch_template_name        = "${var.project_name}-ltmp-${terraform.workspace}"
-  launch_template_description = "Launch template for the task3 ec2 instances"
-  update_default_version      = true
+  launch_template_description = var.launch_template_description
+  update_default_version      = var.Launch_template_update_default
 
   image_id      = var.instance_ami
   instance_type = var.instance_type
@@ -169,14 +193,14 @@ module "ecs_service" {
   create_task_definition = false
   task_definition_arn    = aws_ecs_task_definition.task_def.arn
 
-  launch_type   = "EC2"
-  desired_count = 2
+  launch_type   = var.service_launch_type
+  desired_count = var.desired_task_count
 
   load_balancer = {
     service = {
       target_group_arn = module.alb.target_groups["${var.project_name}-tgrp-${terraform.workspace}"].arn
-      container_name   = "web-app"
-      container_port   = 80
+      container_name   = var.webapp_container_name
+      container_port   = var.webapp_container_port
     }
   }
 
@@ -190,14 +214,15 @@ module "alb" {
   name               = "${var.project_name}-alb-${terraform.workspace}"
   load_balancer_type = "application"
 
-  vpc_id  = module.vpc.vpc_id
-  subnets = module.vpc.public_subnets
+  vpc_id   = module.vpc.vpc_id
+  subnets  = module.vpc.public_subnets
+  internal = var.alb_internal
 
   security_groups = [module.public_security_group.security_group_id]
   listeners = {
     http = {
-      port     = 80
-      protocol = "HTTP"
+      port     = var.webapp_container_port
+      protocol = var.webapp_app_protocol
       forward = {
         target_group_key = "${var.project_name}-tgrp-${terraform.workspace}"
       }
@@ -206,25 +231,68 @@ module "alb" {
 
   target_groups = {
     "${var.project_name}-tgrp-${terraform.workspace}" = {
-      backend_protocl                   = "HTTP"
-      backend_port                      = 80
-      target_type                       = "ip"
-      load_balancing_cross_zone_enabled = true
+      backend_protocl                   = var.webapp_app_protocol
+      backend_port                      = var.webapp_container_port
+      target_type                       = var.target_group_target_type
+      load_balancing_cross_zone_enabled = zone.alb_cross_zone
 
       health_check = {
         enabled             = true
-        healthy_threshold   = 5
-        interval            = 30
-        matcher             = "200"
-        path                = "/healthcheck"
-        port                = "traffic-port"
-        protocol            = "HTTP"
-        timeout             = "5"
-        unhealthy_threshold = 2
+        healthy_threshold   = var.healthcheck_threshold
+        interval            = var.healthcheck_interval
+        matcher             = var.healthcheck_matcher
+        path                = var.healthcheck_path
+        protocol            = var.healthcheck_protocol
+        timeout             = var.healthcheck_timeout
+        unhealthy_threshold = var.unhealthy_threshold
       }
 
       create_attachment = false
     }
   }
-  enable_deletion_protection = false
+  enable_deletion_protection = var.alb_enable_deletion_protection
+}
+
+resource "aws_iam_role" "task_role" {
+  name = "${var.project_name}-taskrole-${terraform.workspace}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      },
+    ]
+  })
+
+  inline_policy {
+    name = "TaskGetSecretPolicy"
+    policy = jsonencode({
+
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Sid    = "Statement1"
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:GetSecretValue"
+          ]
+          Resource = "${module.db.db_instance_master_user_secret_arn}"
+        }
+      ]
+    })
+  }
+}
+data "aws_iam_policy" "task_exec_policy" {
+  name = var.task_exec_policy_name
+}
+
+resource "aws_iam_role_policy_attachment" "task_exec_role_policy_attach" {
+  role       = aws_iam_role.task_role.name
+  policy_arn = data.aws_iam_policy.task_exec_policy.arn
 }
