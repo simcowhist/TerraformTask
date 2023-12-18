@@ -415,94 +415,94 @@ variable "task_exec_policy_name" {
 }
 
 variable "estimated_instance_warmup" {
-  default = 30
-  type = number
+  default     = 30
+  type        = number
   description = "Estimated time in seconds for an instance to be ready for use"
 }
 
 variable "scaling_type" {
-  default = "StepScaling"
-  type = string
+  default     = "StepScaling"
+  type        = string
   description = "The type of scaling policy to use"
 }
 
 variable "scaling_adjustment_type" {
-  default = "ExactCapacity"
-  type = string
+  default     = "ExactCapacity"
+  type        = string
   description = "The adjustment type for the scaling policies"
 }
 
 variable "scale_up_adjustment" {
-  default = 4
-  type = number
+  default     = 4
+  type        = number
   description = "Amount of instances to be adjusted when scaling up"
 }
 
 variable "scale_down_adjustment" {
-  default = 2
-  type = number
+  default     = 2
+  type        = number
   description = "Amount of instances to be adjusted when scaling down"
 }
 
 variable "upscale_alarm_threshold" {
-  default = 60
-  type = number
+  default     = 60
+  type        = number
   description = "The threshold for the upscale alarm to be triggered"
 }
 
 variable "downscale_alarm_threshold" {
-  default = 40
-  type = number
+  default     = 40
+  type        = number
   description = "The threshold for the downscale alarm to be triggered"
 }
 
 variable "alarm_evaluation_periods" {
-  default = 1
-  type = number
+  default     = 1
+  type        = number
   description = "The amount of periods for the alarm to evalulate before triggering"
 }
 
 variable "alarm_period" {
-  default = 30
-  type = number
+  default     = 30
+  type        = number
   description = "The time in seconds for an alarm to test in order to trigger"
 }
 
 variable "alarm_statistic" {
   description = "The type of statistic for the alarm to test"
-  type = string
-  default = "Average"
+  type        = string
+  default     = "Average"
 }
 
 variable "upscale_alarm_comparison_operator" {
-  type = string
-  default = "GreaterThanOrEqualToThreshold"
+  type        = string
+  default     = "GreaterThanOrEqualToThreshold"
   description = "The type of comparison operator for the upscale alarm"
 }
 
 variable "downscale_alarm_comparison_operator" {
-  type = string
+  type        = string
   description = "The type of comparison operator for the upscale alarm"
-  default = "LessThanOrEqualToThreshold"
+  default     = "LessThanOrEqualToThreshold"
 }
 
 variable "alarm_metric_name" {
-  type = string
+  type        = string
   description = "The name of the metric to test"
-  default = "CPUUtilization"
+  default     = "CPUUtilization"
 }
 
 variable "alarm_namepsace" {
-  type = string
+  type    = string
   default = "AWS/ECS"
 }
 
 variable "upscale_policy_lower_bound" {
-  type = number
+  type    = number
   default = 0
 }
 
 variable "downscale_policy_upper_bound" {
-  type = number
+  type    = number
   default = 0
 }
