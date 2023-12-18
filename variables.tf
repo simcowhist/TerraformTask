@@ -190,7 +190,7 @@ variable "db_engine_version" {
 
 variable "db_family" {
   description = "The db family name"
-  default     = "8.0mysql"
+  default     = "mysql8.0"
   type        = string
 }
 
@@ -256,12 +256,12 @@ variable "webapp_container_port" {
 
 variable "webapp_app_protocol" {
   description = "Protocol for the application"
-  default     = "tcp"
+  default     = "HTTP"
   type        = string
 }
 
 variable "webapp_protocol" {
-  default = "http"
+  default = "TCP"
   type    = string
 }
 
@@ -305,8 +305,8 @@ variable "webapp_runtime_platform_operating_system_family" {
 }
 
 variable "aws_logs_create_group" {
-  default     = true
-  type        = bool
+  default     = "true"
+  type        = string
   description = "if to create aws log group"
 }
 
@@ -338,6 +338,11 @@ variable "service_launch_type" {
   type        = string
 }
 
+variable "desired_task_count" {
+  default     = 2
+  description = "Amount of desired tasks to run"
+  type        = number
+}
 variable "load_balancer_type" {
   default     = "application"
   description = "Value to specify the type of load balancer"
@@ -407,4 +412,97 @@ variable "task_exec_policy_name" {
   default     = "AmazonECSTaskExecutionRolePolicy"
   type        = string
   description = "Name of existing AWS task execution policy to give task role"
+}
+
+variable "estimated_instance_warmup" {
+  default = 30
+  type = number
+  description = "Estimated time in seconds for an instance to be ready for use"
+}
+
+variable "scaling_type" {
+  default = "StepScaling"
+  type = string
+  description = "The type of scaling policy to use"
+}
+
+variable "scaling_adjustment_type" {
+  default = "ExactCapacity"
+  type = string
+  description = "The adjustment type for the scaling policies"
+}
+
+variable "scale_up_adjustment" {
+  default = 4
+  type = number
+  description = "Amount of instances to be adjusted when scaling up"
+}
+
+variable "scale_down_adjustment" {
+  default = 2
+  type = number
+  description = "Amount of instances to be adjusted when scaling down"
+}
+
+variable "upscale_alarm_threshold" {
+  default = 60
+  type = number
+  description = "The threshold for the upscale alarm to be triggered"
+}
+
+variable "downscale_alarm_threshold" {
+  default = 40
+  type = number
+  description = "The threshold for the downscale alarm to be triggered"
+}
+
+variable "alarm_evaluation_periods" {
+  default = 1
+  type = number
+  description = "The amount of periods for the alarm to evalulate before triggering"
+}
+
+variable "alarm_period" {
+  default = 30
+  type = number
+  description = "The time in seconds for an alarm to test in order to trigger"
+}
+
+variable "alarm_statistic" {
+  description = "The type of statistic for the alarm to test"
+  type = string
+  default = "Average"
+}
+
+variable "upscale_alarm_comparison_operator" {
+  type = string
+  default = "GreaterThanOrEqualToThreshold"
+  description = "The type of comparison operator for the upscale alarm"
+}
+
+variable "downscale_alarm_comparison_operator" {
+  type = string
+  description = "The type of comparison operator for the upscale alarm"
+  default = "LessThanOrEqualToThreshold"
+}
+
+variable "alarm_metric_name" {
+  type = string
+  description = "The name of the metric to test"
+  default = "CPUUtilization"
+}
+
+variable "alarm_namepsace" {
+  type = string
+  default = "AWS/ECS"
+}
+
+variable "upscale_policy_lower_bound" {
+  type = number
+  default = 0
+}
+
+variable "downscale_policy_upper_bound" {
+  type = number
+  default = 0
 }

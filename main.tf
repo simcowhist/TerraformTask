@@ -69,7 +69,7 @@ module "db" {
   major_engine_version = var.db_major_engine_version
   engine_version       = var.db_engine_version
   family               = var.db_family
-  instance_class       = var.instance_type
+  instance_class       = var.db_instance_type
   allocated_storage    = var.db_allocated_stroage
 
   db_name  = var.project_name
@@ -100,7 +100,7 @@ resource "aws_ecs_task_definition" "task_def" {
           containerPort = var.webapp_container_port
           hostPort      = var.webapp_host_port
           protocol      = var.webapp_protocol
-          appProtocol   = var.webapp_app_protocol
+          appProtocol   = lower(var.webapp_app_protocol)
         }
       ]
       essential = var.webapp_essential
@@ -164,6 +164,17 @@ module "autoscaling" {
   image_id      = var.instance_ami
   instance_type = var.instance_type
   instance_name = "${var.project_name}-inst-${terraform.workspace}"
+
+  block_device_mappings = [
+    {
+      device_name = "/dev/xvda"
+      ebs = {
+        volume_size           = 30
+        volume_type           = "gp3"
+        delete_on_termination = true
+      }
+    }
+  ]
 
   create_iam_instance_profile = false
   iam_instance_profile_arn    = var.iam_instance_profile_arn
@@ -234,7 +245,7 @@ module "alb" {
       backend_protocl                   = var.webapp_app_protocol
       backend_port                      = var.webapp_container_port
       target_type                       = var.target_group_target_type
-      load_balancing_cross_zone_enabled = zone.alb_cross_zone
+      load_balancing_cross_zone_enabled = var.alb_cross_zone
 
       health_check = {
         enabled             = true
@@ -295,4 +306,63 @@ data "aws_iam_policy" "task_exec_policy" {
 resource "aws_iam_role_policy_attachment" "task_exec_role_policy_attach" {
   role       = aws_iam_role.task_role.name
   policy_arn = data.aws_iam_policy.task_exec_policy.arn
+}
+
+resource "aws_autoscaling_policy" "webapp_scale_up" {
+  name                      = "${var.project_name}-scale-up-policy-${terraform.workspace}"
+  policy_type               = var.scaling_type
+  adjustment_type           = var.scaling_adjustment_type
+  autoscaling_group_name    = module.autoscaling.autoscaling_group_name
+  estimated_instance_warmup = var.estimated_instance_warmup
+
+  step_adjustment {
+    metric_interval_upper_bound = var.upscale_policy_lower_bound
+    scaling_adjustment          = var.scale_up_adjustment
+  }
+}
+
+resource "aws_autoscaling_policy" "webapp_scale_down" {
+  name                      = "${var.project_name}-scale-down-policy-${terraform.workspace}"
+  policy_type               = var.scaling_type
+  adjustment_type           = var.scaling_adjustment_type
+  autoscaling_group_name    = module.autoscaling.autoscaling_group_name
+  estimated_instance_warmup = var.estimated_instance_warmup
+
+  step_adjustment {
+    scaling_adjustment          = var.scale_down_adjustment
+    metric_interval_upper_bound = var.downscale_policy_upper_bound
+  }
+
+}
+
+resource "aws_cloudwatch_metric_alarm" "scale_up" {
+  alarm_name          = "${var.project_name}-cpu-scale-up-${terraform.workspace}"
+  comparison_operator = var.upscale_alarm_comparison_operator
+  evaluation_periods  = var.alarm_evaluation_periods
+  metric_name         = var.alarm_metric_name
+  namespace           = var.alarm_namepsace
+  period              = var.alarm_period
+  statistic           = var.alarm_statistic
+  threshold           = var.upscale_alarm_threshold
+  alarm_description   = "This metric monitors ECS Cluster cpu utilization going up"
+  alarm_actions       = [aws_autoscaling_policy.webapp_scale_up.arn]
+  dimensions = {
+    ClusterName = module.ecs_cluster.name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "scale_down" {
+  alarm_name          = "${var.project_name}-cpu-scale-down-${terraform.workspace}"
+  comparison_operator = var.downscale_alarm_comparison_operator
+  evaluation_periods  = var.alarm_evaluation_periods
+  metric_name         = var.alarm_metric_name
+  namespace           = var.alarm_namepsace
+  period              = var.alarm_period
+  statistic           = var.alarm_statistic
+  threshold           = var.downscale_alarm_threshold
+  alarm_description   = "This metric monitors ECS Cluster cpu utilization going down"
+  alarm_actions       = [aws_autoscaling_policy.webapp_scale_down.arn]
+  dimensions = {
+    ClusterName = module.ecs_cluster.name
+  }
 }
